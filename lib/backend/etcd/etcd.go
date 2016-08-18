@@ -102,7 +102,7 @@ func (c *EtcdClient) Create(d *KVPair) (*KVPair, error) {
 	rsp, err := c.etcdClient.KV.Txn(context.Background()).If(
 		notFound(d.Key),
 	).Then(
-		etcd.OpPut(d.Key, string(d.Value), ...),
+		etcd.OpPut(d.Key, string(d.Value)),
 	).Commit()
 	if err != nil {
 		return d, err
