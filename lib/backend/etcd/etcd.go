@@ -33,11 +33,7 @@ import (
 )
 
 var (
-	etcdApplyOpts  = &etcd.SetOptions{PrevExist: etcd.PrevIgnore}
-	etcdCreateOpts = &etcd.SetOptions{PrevExist: etcd.PrevNoExist}
-	etcdGetOpts    = &etcd.GetOptions{Quorum: true}
-	etcdListOpts   = &etcd.GetOptions{Quorum: true, Recursive: true, Sort: true}
-	clientTimeout  = 30 * time.Second
+	clientTimeout = 30 * time.Second
 )
 
 type EtcdConfig struct {
@@ -102,7 +98,21 @@ func (c *EtcdClient) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
 
 // Create an entry in the datastore.  This errors if the entry already exists.
 func (c *EtcdClient) Create(d *KVPair) (*KVPair, error) {
-	return c.set(d, etcdCreateOpts)
+	// k8s crib
+	rsp, err := c.etcdClient.KV.Txn(context.Background()).If(
+		notFound(d.Key)
+	).Then(
+		etcd.OpPut(d.Key, string(d.Value), ...)
+	).Commit()
+	if err != nil {
+		return d, err
+	}
+	if !rsp.Succeeded {
+		return d, error.New("Created existing key")
+	}
+	put_rsp := rsp.Responses[0].GetResponsePut()
+	d.Revision = put_rsp // MD4 not sure if want to adjust this...
+	return d, nil
 }
 
 // Update an existing entry in the datastore.  This errors if the entry does
@@ -113,6 +123,8 @@ func (c *EtcdClient) Update(d *KVPair) (*KVPair, error) {
 	if d.Revision != nil {
 		options.PrevIndex = d.Revision.(uint64)
 	}
+
+	// MD4 approx alg: if d.revision;
 
 	return c.set(d, &options)
 }
@@ -166,7 +178,7 @@ func (c *EtcdClient) List(l ListInterface) ([]*KVPair, error) {
 	// IDs, and then filter the results.
 	key := l.DefaultPathRoot()
 	glog.V(2).Infof("List Key: %s\n", key)
-	if results, err := c.etcdKeysAPI.Get(context.Background(), key, etcdListOpts); err != nil {
+	if results, err := c.etcdKeysAPI.Get(context.Background(), key, etcdListOpts); err != nil { // opts: recursive + sort
 		// If the root key does not exist - that's fine, return no list entries.
 		err = convertEtcdError(err, nil)
 		switch err.(type) {
