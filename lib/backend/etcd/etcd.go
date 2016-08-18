@@ -100,9 +100,9 @@ func (c *EtcdClient) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
 func (c *EtcdClient) Create(d *KVPair) (*KVPair, error) {
 	// k8s crib
 	rsp, err := c.etcdClient.KV.Txn(context.Background()).If(
-		notFound(d.Key)
+		notFound(d.Key),
 	).Then(
-		etcd.OpPut(d.Key, string(d.Value), ...)
+		etcd.OpPut(d.Key, string(d.Value), ...),
 	).Commit()
 	if err != nil {
 		return d, err
