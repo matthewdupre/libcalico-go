@@ -198,6 +198,10 @@ func (c *EtcdClient) List(l ListInterface) ([]*KVPair, error) {
 	}
 }
 
+func notFound(key string) etcd.Cmp {
+	return etcd.Compare(etcd.ModRevision(key), "=", 0)
+}
+
 // Set an existing entry in the datastore.  This ignores whether an entry already
 // exists.
 func (c *EtcdClient) set(d *KVPair, options *etcd.SetOptions) (*KVPair, error) {
