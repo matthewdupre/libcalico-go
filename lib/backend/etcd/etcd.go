@@ -23,7 +23,7 @@ import (
 
 	"encoding/json"
 
-	etcd "github.com/coreos/etcd/client"
+	etcd "github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/pkg/transport"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/backend/api"
@@ -61,7 +61,7 @@ func NewEtcdClient(config *EtcdConfig) (*EtcdClient, error) {
 	// takes precedence if both are specified.
 	etcdLocation := []string{}
 	if config.EtcdAuthority != "" {
-		etcdLocation = []string{"http://" + config.EtcdAuthority}
+		etcdLocation = []string{config.EtcdScheme + "://" + config.EtcdAuthority}
 	}
 	if config.EtcdEndpoints != "" {
 		etcdLocation = strings.Split(config.EtcdEndpoints, ",")
@@ -77,15 +77,10 @@ func NewEtcdClient(config *EtcdConfig) (*EtcdClient, error) {
 		CertFile: config.EtcdCertFile,
 		KeyFile:  config.EtcdKeyFile,
 	}
-	transport, err := transport.NewTransport(tls, clientTimeout)
-	if err != nil {
-		return nil, err
-	}
-
 	cfg := etcd.Config{
-		Endpoints:               etcdLocation,
-		Transport:               transport,
-		HeaderTimeoutPerRequest: clientTimeout,
+		Endpoints:   etcdLocation,
+		TLS:         tls,
+		DialTimeout: clientTimeout,
 	}
 
 	// Plumb through the username and password if both are configured.

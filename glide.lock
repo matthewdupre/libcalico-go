@@ -1,5 +1,5 @@
-hash: 1a696e4d1f4b30ceb1b1305d8baeb4201a10aa006f78ca8024b838896f6f2901
-updated: 2016-08-12T10:34:11.659733358-07:00
+hash: 773c3ba3e4733de8406c9096ae8f97a80dc202f78836040cd65c0606b77a63e4
+updated: 2016-08-17T10:47:41.6107618-07:00
 imports:
 - name: github.com/cloudfoundry-incubator/candiedyaml
   version: 99c3df83b51532e3615f851d8c2dbb638f5313bf
@@ -7,11 +7,11 @@ imports:
   version: 1ba7bb237fd54884381c7d4d46d78010d7aac2ad
   subpackages:
   - client
-  - pkg/transport
-  - pkg/pathutil
-  - pkg/types
   - pkg/fileutil
+  - pkg/pathutil
   - pkg/tlsutil
+  - pkg/transport
+  - pkg/types
 - name: github.com/coreos/go-systemd
   version: d4039021cfc2d0ea21d34afda21631314e83f75a
   subpackages:
@@ -40,4 +40,8 @@ imports:
   - context
 - name: gopkg.in/go-playground/validator.v8
   version: 7a080ada5ba072a91fd7f677bcf4d0e1aa286d39
-devImports: []
+- name: gopkg.in/tchap/go-patricia.v2
+  version: 8304b1f670ec9603eb3eebcb3bd08e13a8a2630b
+  subpackages:
+  - patricia
+testImports: []
