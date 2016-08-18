@@ -134,7 +134,8 @@ func (c *EtcdClient) Delete(d *KVPair) error {
 		etcdDeleteOpts.PrevIndex = d.Revision.(uint64)
 	}
 	glog.V(2).Infof("Delete Key: %s\n", key)
-	_, err = c.etcdKeysAPI.Delete(context.Background(), key, etcdDeleteOpts)
+
+	_, err = c.etcdClient.Delete(context.Background(), key, etcdDeleteOpts)
 	return convertEtcdError(err, d.Key)
 }
 
@@ -145,7 +146,7 @@ func (c *EtcdClient) Get(k Key) (*KVPair, error) {
 		return nil, err
 	}
 	glog.V(2).Infof("Get Key: %s\n", key)
-	if results, err := c.etcdKeysAPI.Get(context.Background(), key, etcdGetOpts); err != nil {
+	if results, err := c.etcdClient.Get(context.Background(), key, etcdGetOpts); err != nil {
 		return nil, convertEtcdError(err, k)
 	} else if object, err := ParseValue(k, []byte(results.Node.Value)); err != nil {
 		return nil, err
