@@ -52,8 +52,7 @@ type EtcdConfig struct {
 }
 
 type EtcdClient struct {
-	etcdClient  etcd.Client
-	etcdKeysAPI etcd.KeysAPI
+	etcdClient etcd.Client
 }
 
 func NewEtcdClient(config *EtcdConfig) (*EtcdClient, error) {
@@ -93,13 +92,12 @@ func NewEtcdClient(config *EtcdConfig) (*EtcdClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	keys := etcd.NewKeysAPI(client)
 
-	return &EtcdClient{etcdClient: client, etcdKeysAPI: keys}, nil
+	return &EtcdClient{etcdClient: client}, nil
 }
 
 func (c *EtcdClient) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
-	return newSyncer(c.etcdKeysAPI, callbacks)
+	return newSyncer(c, callbacks)
 }
 
 // Create an entry in the datastore.  This errors if the entry already exists.

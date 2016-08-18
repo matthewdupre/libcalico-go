@@ -166,8 +166,6 @@ func (fc *FelixConnection) handleProcessStatusUpdateFromFelix(msg *proto.FelixSt
 	kv := model.KVPair{
 		Key:   model.ActiveStatusReportKey{Hostname: fc.hostname},
 		Value: &statusReport,
-		// BUG(smc) Should honour TTL config
-		TTL: 90 * time.Second,
 	}
 	_, err := fc.datastore.Apply(&kv)
 	if err != nil {

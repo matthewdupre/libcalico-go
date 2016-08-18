@@ -16,7 +16,7 @@ package etcd
 
 import (
 	"github.com/coreos/etcd/client"
-	etcd "github.com/coreos/etcd/client"
+	etcd "github.com/coreos/etcd/clientv3"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/datastructures/hwm"
 	"github.com/tigera/libcalico-go/lib/backend/api"

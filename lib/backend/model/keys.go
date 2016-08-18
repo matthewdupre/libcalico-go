@@ -58,7 +58,6 @@ type KVPair struct {
 	Key      Key
 	Value    interface{}
 	Revision interface{}
-	TTL      time.Duration // For writes, if non-zero, key has a TTL.
 }
 
 // ParseKey parses a datastore key into one of the <Type>Key structs.
