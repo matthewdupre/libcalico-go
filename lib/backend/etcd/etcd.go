@@ -48,7 +48,7 @@ type EtcdConfig struct {
 }
 
 type EtcdClient struct {
-	etcdClient etcd.Client
+	client etcd.Client
 }
 
 func NewEtcdClient(config *EtcdConfig) (*EtcdClient, error) {
@@ -89,7 +89,7 @@ func NewEtcdClient(config *EtcdConfig) (*EtcdClient, error) {
 		return nil, err
 	}
 
-	return &EtcdClient{etcdClient: client}, nil
+	return &EtcdClient{client: client}, nil
 }
 
 func (c *EtcdClient) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
@@ -99,44 +99,70 @@ func (c *EtcdClient) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
 // Create an entry in the datastore.  This errors if the entry already exists.
 func (c *EtcdClient) Create(d *KVPair) (*KVPair, error) {
 	// k8s crib
-	rsp, err := c.etcdClient.KV.Txn(context.Background()).If(
-		notFound(d.Key),
+	rsp, err := c.client.KV.Txn(context.Background()).If(
+		notFound(d.Key.DefaultPath()),
 	).Then(
-		etcd.OpPut(d.Key, string(d.Value)),
+		etcd.OpPut(d.Key.DefaultPath(), string(d.Value)),
 	).Commit()
 	if err != nil {
 		return d, err
 	}
 	if !rsp.Succeeded {
-		return d, error.New("Created existing key")
+		return d, error.New("Created existing key TODO fix typing")
 	}
-	put_rsp := rsp.Responses[0].GetResponsePut()
+	put_rsp := rsp.Responses[0].GetResponsePut().GetHeader()
 	d.Revision = put_rsp // MD4 not sure if want to adjust this...
+	// MD4 need to be sure to only compare revision and raftterm, not member id
 	return d, nil
 }
 
 // Update an existing entry in the datastore.  This errors if the entry does
 // not exist.
 func (c *EtcdClient) Update(d *KVPair) (*KVPair, error) {
-	// If the request includes a revision, set it as the etcd previous index.
-	options := etcd.SetOptions{PrevExist: etcd.PrevExist}
-	if d.Revision != nil {
-		options.PrevIndex = d.Revision.(uint64)
+	rsp, err := c.client.KV.Txn(context.Background()).If(
+		cmpExists(d.Key.DefaultPath(), d.Revision),
+	).Then(
+		etcd.OpPut(d.Key.DefaultPath(), string(d.Value)),
+	).Commit()
+	if err != nil {
+		return d, err
 	}
-
-	// MD4 approx alg: if d.revision;
-
-	return c.set(d, &options)
+	if !rsp.Succeeded {
+		return d, error.New("Key doesn't exist or changed underneath TODO better error")
+	}
+	put_rsp := rsp.Responses[0].GetResponsePut().GetHeader()
+	d.Revision = put_rsp // MD4 not sure if want to adjust this...
+	// MD4 need to be sure to only compare revision and raftterm, not member id
+	return d, nil
 }
 
 // Set an existing entry in the datastore.  This ignores whether an entry already
 // exists.
 func (c *EtcdClient) Apply(d *KVPair) (*KVPair, error) {
-	return c.set(d, etcdApplyOpts)
+	rsp, err := c.client.KV.Put(context.Background(), d.Key, string(d.Value))
+	if err != nil {
+		return d, err
+	}
+	d.Revision = rsp.GetHeader()
+	return d, nil
 }
 
-// Delete an entry in the datastore.  This errors if the entry does not exists.
+// Delete an entry in the datastore.  This errors if the entry does not exist.
 func (c *EtcdClient) Delete(d *KVPair) error {
+	rsp, err := c.client.KV.Txn(context.Background()).If(
+		cmpExists(d.Key.DefaultPath(), d.Revision),
+	).Then(
+		etcd.OpPut(d.Key.DefaultDeletePath(), string(d.Value)), // Need some /s on the end to 
+	).Commit()
+	if err != nil {
+		return d, err
+	}
+	if !rsp.Succeeded {
+		return d, error.New("Key doesn't exist or changed underneath TODO better error")
+	}
+
+
+
 	key, err := d.Key.DefaultDeletePath()
 	if err != nil {
 		return err
@@ -198,8 +224,20 @@ func (c *EtcdClient) List(l ListInterface) ([]*KVPair, error) {
 	}
 }
 
-func notFound(key string) etcd.Cmp {
+func cmpNotFound(key string) etcd.Cmp {
 	return etcd.Compare(etcd.ModRevision(key), "=", 0)
+}
+
+// Create an etcd.Compare that checks a key existed.  If a revision is provided,
+// check the previous modified revision matches.
+func cmpExists(key string, revision interface{}) etcd.Cmp {
+	if revision = nil {
+		rsp_header := revision.(etcd.ResponseHeader)
+		// MD4 Should we be looking at raftTerm as well?
+		return etcd.Compare(etcd.ModRevision(key), "=", rsp_header.Revision)
+	} else {
+		return etcd.Compare(etcd.ModRevision(key), ">", 0)
+	}
 }
 
 // Set an existing entry in the datastore.  This ignores whether an entry already
