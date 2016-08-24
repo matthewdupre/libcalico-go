@@ -100,7 +100,7 @@ func (c *EtcdClient) Syncer(callbacks api.SyncerCallbacks) api.Syncer {
 func (c *EtcdClient) Create(d *KVPair) (*KVPair, error) {
 	// k8s crib
 	rsp, err := c.client.KV.Txn(context.Background()).If(
-		notFound(d.Key.DefaultPath()),
+		cmpNotExists(d.Key.DefaultPath()),
 	).Then(
 		etcd.OpPut(d.Key.DefaultPath(), string(d.Value)),
 	).Commit()
@@ -150,31 +150,17 @@ func (c *EtcdClient) Apply(d *KVPair) (*KVPair, error) {
 // Delete an entry in the datastore.  This errors if the entry does not exist.
 func (c *EtcdClient) Delete(d *KVPair) error {
 	rsp, err := c.client.KV.Txn(context.Background()).If(
-		cmpExists(d.Key.DefaultPath(), d.Revision),
+		cmpExists(d.Key.DefaultPath(), d.Revision), // key.DefaultPath() can return errors...  Need to handle.
 	).Then(
 		etcd.OpPut(d.Key.DefaultDeletePath(), string(d.Value)), // Need some /s on the end to 
 	).Commit()
 	if err != nil {
-		return d, err
-	}
-	if !rsp.Succeeded {
-		return d, error.New("Key doesn't exist or changed underneath TODO better error")
-	}
-
-
-
-	key, err := d.Key.DefaultDeletePath()
-	if err != nil {
 		return err
 	}
-	etcdDeleteOpts := &etcd.DeleteOptions{Recursive: true}
-	if d.Revision != nil {
-		etcdDeleteOpts.PrevIndex = d.Revision.(uint64)
+	if !rsp.Succeeded {
+		return error.New("Key doesn't exist or changed underneath TODO better error")
 	}
-	glog.V(2).Infof("Delete Key: %s\n", key)
-
-	_, err = c.etcdClient.Delete(context.Background(), key, etcdDeleteOpts)
-	return convertEtcdError(err, d.Key)
+	return nil
 }
 
 // Get an entry from the datastore.  This errors if the entry does not exist.
@@ -224,7 +210,7 @@ func (c *EtcdClient) List(l ListInterface) ([]*KVPair, error) {
 	}
 }
 
-func cmpNotFound(key string) etcd.Cmp {
+func cmpNotExists(key string) etcd.Cmp {
 	return etcd.Compare(etcd.ModRevision(key), "=", 0)
 }
 

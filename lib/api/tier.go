@@ -28,18 +28,18 @@ type TierSpec struct {
 }
 
 type Tier struct {
-	TypeMetadata
-	Metadata TierMetadata `json:"metadata,omitempty"`
-	Spec     TierSpec     `json:"spec,omitempty"`
+	TypeMetadata              // MD4 Removable...  Adds complexity; serializer can do it if it's needed.
+	Metadata     TierMetadata `json:"metadata,omitempty"`
+	Spec         TierSpec     `json:"spec,omitempty"`
 }
 
-func NewTier() *Tier {
-	return &Tier{TypeMetadata: TypeMetadata{Kind: "tier", APIVersion: "v1"}}
+func NewTier() *Tier { // MD4 Clearer to pass name into this as well and make a real constructor?
+	return &Tier{TypeMetadata: TypeMetadata{Kind: "tier", APIVersion: "v1"}} // MD4 How much do we really get from the version?  Do we even know how it works.
 }
 
-type TierList struct {
+type TierList struct { // MD4 I wish we could remove these.  Just make all the Gets return Tier[]s.
 	TypeMetadata
-	Metadata ListMetadata `json:"metadata,omitempty"`
+	Metadata ListMetadata `json:"metadata,omitempty"` // MD4 Could remove?
 	Items    []Tier       `json:"items" validate:"dive"`
 }
 
